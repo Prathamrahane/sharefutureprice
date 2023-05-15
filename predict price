@@ -1,0 +1,46 @@
+import pandas as pd
+import yfinance as yf
+import datetime
+from datetime import date, timedelta
+import plotly.graph_objects as go
+import plotly.express as px
+from sklearn.linear_model import LinearRegression
+
+today = date.today()
+
+d1 = today.strftime("%Y-%m-%d")
+end_date = d1
+d2 = date.today() - timedelta(days=365)
+d2 = d2.strftime("%Y-%m-%d")
+start_date = d2
+
+data = yf.download('PARAGMILK.NS', 
+                   start=start_date, 
+                   end=end_date, 
+                   progress=False)
+data["Date"] = data.index
+data = data[["Date", "Open", "High", "Low", "Close", "Adj Close", "Volume"]]
+data.reset_index(drop=True, inplace=True)
+
+# Create a linear regression model
+model = LinearRegression()
+
+# Train the model on the historical data
+X_train = data.index.values.reshape(-1, 1)
+y_train = data['Close'].values.reshape(-1, 1)
+model.fit(X_train, y_train)
+
+# Predict future prices
+num_days = 30
+future_dates = pd.date_range(start=d1, periods=num_days, freq='D')
+X_test = [(date - data['Date'][0]).days for date in future_dates]
+X_test = pd.DataFrame(X_test).values.reshape(-1, 1)
+y_pred = model.predict(X_test)
+
+# Create a plot of the historical data and predicted future prices
+fig = go.Figure(data=[go.Candlestick(x=data['Date'],
+                                      open=data['Open'], high=data['High'],
+                                      low=data['Low'], close=data['Close'])])
+fig.add_trace(go.Scatter(x=future_dates, y=y_pred.flatten(), mode='lines', name='Future Prices'))
+fig.update_layout(title='Parag Parikh Share Price Analysis with Future Price Prediction', xaxis_rangeslider_visible=False)
+fig.show()
